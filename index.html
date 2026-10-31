@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>RTG Word</title>
+<style>
+  :root {
+    --word-blue: #185abd;
+    --word-blue-dark: #103f82;
+    --ribbon-bg: #f3f2f1;
+    --border-color: #d2d0ce;
+    --canvas-bg: #e1dfdd;
+    --text-color: #252423;
+    --page-bg: #ffffff;
+  }
+  body.dark-mode {
+    --word-blue: #2b579a;
+    --ribbon-bg: #2d2d2d;
+    --border-color: #444;
+    --canvas-bg: #1e1e1e;
+    --text-color: #f0f0f0;
+    --page-bg: #252526;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+  body { display: flex; flex-direction: column; height: 100vh; background: var(--canvas-bg); color: var(--text-color); overflow: hidden; }
+  
+  /* Title Bar */
+  .title-bar {
+    background: var(--word-blue); color: #fff; display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 14px; font-size: 13px;
+  }
+  .title-left { display: flex; align-items: center; gap: 12px; }
+  .app-title { font-weight: 600; font-size: 14px; letter-spacing: 0.3px; }
+  .doc-name-input {
+    background: rgba(255,255,255,0.15); border: 1px solid transparent; color: #fff;
+    padding: 3px 8px; border-radius: 4px; font-size: 13px; width: 180px;
+  }
+  .doc-name-input:focus { outline: none; border-color: #fff; background: rgba(0,0,0,0.2); }
+  .quick-actions button {
+    background: transparent; border: none; color: #fff; cursor: pointer; padding: 4px 8px; border-radius: 3px; font-size: 12px;
+  }
+  .quick-actions button:hover { background: rgba(255,255,255,0.2); }
+
+  /* Tabs */
+  .ribbon-tabs {
+    background: var(--word-blue); display: flex; gap: 2px; padding: 0 12px;
+  }
+  .tab-btn {
+    background: transparent; border: none; color: #fff; padding: 7px 16px; font-size: 13px; cursor: pointer;
+    border-top-left-radius: 4px; border-top-right-radius: 4px;
+  }
+  .tab-btn.active { background: var(--ribbon-bg); color: var(--word-blue); font-weight: 600; }
+  body.dark-mode .tab-btn.active { color: #fff; }
+
+  /* Ribbon Toolbar */
+  .ribbon-content {
+    background: var(--ribbon-bg); border-bottom: 1px solid var(--border-color);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; min-height: 56px;
+  }
+  .tab-pane { display: none; flex-wrap: wrap; gap: 8px; align-items: center; width: 100%; }
+  .tab-pane.active { display: flex; }
+  .tool-group {
+    display: flex; align-items: center; gap: 4px; padding-right: 10px; border-right: 1px solid var(--border-color);
+  }
+  .tool-group:last-child { border-right: none; }
+  .tool-btn, select, input[type="color"] {
+    background: transparent; border: 1px solid transparent; color: var(--text-color);
+    padding: 5px 8px; border-radius: 3px; cursor: pointer; font-size: 13px;
+  }
+  select { border-color: var(--border-color); background: var(--page-bg); }
+  .tool-btn:hover { background: rgba(0,0,0,0.08); border-color: var(--border-color); }
+  
+  /* Workspace & Page */
+  .workspace {
+    flex: 1; overflow-y: auto; display: flex; justify-content: center; padding: 24px 12px;
+  }
+  .page {
+    background: var(--page-bg); color: var(--text-color); width: 210mm; min-height: 297mm;
+    padding: 25.4mm; box-shadow: 0 4px 14px rgba(0,0,0,0.18); outline: none;
+    line-height: 1.5; font-size: 12pt; transform-origin: top center;
+  }
+  .page table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  .page table, .page th, .page td { border: 1px solid #888; padding: 6px 8px; }
+
+  /* Status Bar */
+  .status-bar {
+    background: var(--word-blue); color: #fff; padding: 4px 14px; font-size: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  @media (max-width: 768px) {
+    .page { width: 100%; min-height: 85vh; padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="title-bar">
+  <div class="title-left">
+    <span class="app-title">📄 RTG Word</span>
+    <input type="text" id="docName" class="doc-name-input" value="Document1" />
+  </div>
+  <div class="quick-actions">
+    <button onclick="document.execCommand('undo')" title="Undo">↩ Undo</button>
+    <button onclick="document.execCommand('redo')" title="Redo">↪ Redo</button>
+    <button onclick="exportDoc()" title="Save .doc">💾 Save .doc</button>
+    <button onclick="window.print()" title="Print / PDF">🖨 Print</button>
+  </div>
+</div>
+
+<div class="ribbon-tabs">
+  <button class="tab-btn active" onclick="switchTab('home', this)">Home</button>
+  <button class="tab-btn" onclick="switchTab('insert', this)">Insert</button>
+  <button class="tab-btn" onclick="switchTab('layout', this)">Layout</button>
+  <button class="tab-btn" onclick="switchTab('view', this)">View</button>
+</div>
+
+<div class="ribbon-content">
+  <!-- HOME TAB -->
+  <div id="tab-home" class="tab-pane active">
+    <div class="tool-group">
+      <select onchange="execCmd('fontName', this.value)">
+        <option value="Calibri, sans-serif">Calibri</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="'Times New Roman', serif">Times New Roman</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="'Courier New', monospace">Courier New</option>
+        <option value="Verdana, sans-serif">Verdana</option>
+      </select>
+      <select onchange="execCmd('fontSize', this.value)">
+        <option value="2">10 pt</option>
+        <option value="3" selected>12 pt</option>
+        <option value="4">14 pt</option>
+        <option value="5">18 pt</option>
+        <option value="6">24 pt</option>
+        <option value="7">36 pt</option>
+      </select>
+    </div>
+    <div class="tool-group">
+      <button class="tool-btn" onclick="execCmd('bold')"><b>B</b></button>
+      <button class="tool-btn" onclick="execCmd('italic')"><i>I</i></button>
+      <button class="tool-btn" onclick="execCmd('underline')"><u>U</u></button>
+      <button class="tool-btn" onclick="execCmd('strikeThrough')"><s>S</s></button>
+      <button class="tool-btn" onclick="execCmd('subscript')">X₂</button>
+      <button class="tool-btn" onclick="execCmd('superscript')">X²</button>
+    </div>
+    <div class="tool-group">
+      <label style="font-size:12px;">A <input type="color" onchange="execCmd('foreColor', this.value)" value="#000000"></label>
+      <label style="font-size:12px;">🖍 <input type="color" onchange="execCmd('hiliteColor', this.value)" value="#ffff00"></label>
+    </div>
+    <div class="tool-group">
+      <button class="tool-btn" onclick="execCmd('justifyLeft')">⬅</button>
+      <button class="tool-btn" onclick="execCmd('justifyCenter')">↔</button>
+      <button class="tool-btn" onclick="execCmd('justifyRight')">➡</button>
+      <button class="tool-btn" onclick="execCmd('justifyFull')">☰</button>
+    </div>
+    <div class="tool-group">
+      <button class="tool-btn" onclick="execCmd('insertUnorderedList')">• List</button>
+      <button class="tool-btn" onclick="execCmd('insertOrderedList')">1. List</button>
+      <button class="tool-btn" onclick="execCmd('removeFormat')">✖ Clear</button>
+    </div>
+  </div>
+
+  <!-- INSERT TAB -->
+  <div id="tab-insert" class="tab-pane">
+    <div class="tool-group">
+      <button class="tool-btn" onclick="insertTable()">⊞ Insert Table</button>
+      <button class="tool-btn" onclick="insertImageUrl()">🖼 Image URL</button>
+      <button class="tool-btn" onclick="insertLink()">🔗 Link</button>
+      <button class="tool-btn" onclick="execCmd('insertHorizontalRule')">― Divider</button>
+      <button class="tool-btn" onclick="insertDate()">📅 Date/Time</button>
+    </div>
+  </div>
+
+  <!-- LAYOUT TAB -->
+  <div id="tab-layout" class="tab-pane">
+    <div class="tool-group">
+      <select onchange="setMargins(this.value)">
+        <option value="25.4mm">Margins: Normal (1")</option>
+        <option value="12.7mm">Margins: Narrow (0.5")</option>
+        <option value="38mm">Margins: Wide (1.5")</option>
+      </select>
+      <select onchange="setOrientation(this.value)">
+        <option value="portrait">Portrait</option>
+        <option value="landscape">Landscape</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- VIEW TAB -->
+  <div id="tab-view" class="tab-pane">
+    <div class="tool-group">
+      <button class="tool-btn" onclick="document.body.classList.toggle('dark-mode')">🌙 Dark Mode</button>
+      <button class="tool-btn" onclick="setZoom(0.8)">Zoom 80%</button>
+      <button class="tool-btn" onclick="setZoom(1)">Zoom 100%</button>
+      <button class="tool-btn" onclick="setZoom(1.25)">Zoom 125%</button>
+    </div>
+  </div>
+</div>
+
+<div class="workspace">
+  <div id="editor" class="page" contenteditable="true" spellcheck="true">
+    <h1>Welcome to RTG Word</h1>
+    <p>Start typing your document here. Your changes are automatically saved on your device.</p>
+  </div>
+</div>
+
+<div class="status-bar">
+  <span id="wordCount">Words: 14 | Characters: 89</span>
+  <span>RTG Word Mobile & Desktop Ready</span>
+</div>
+
+<script>
+  const editor = document.getElementById('editor');
+  const wordCountEl = document.getElementById('wordCount');
+
+  // Load saved content
+  if (localStorage.getItem('rtg_word_content')) {
+    editor.innerHTML = localStorage.getItem('rtg_word_content');
+  }
+
+  function execCmd(command, value = null) {
+    document.execCommand(command, false, value);
+    editor.focus();
+    updateCounts();
+  }
+
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function insertTable() {
+    const rows = parseInt(prompt('Number of rows:', '3'), 10) || 3;
+    const cols = parseInt(prompt('Number of columns:', '3'), 10) || 3;
+    let html = '<table><tbody>';
+    for (let r = 0; r < rows; r++) {
+      html += '<tr>';
+      for (let c = 0; c < cols; c++) {
+        html += r === 0 ? '<th>Header</th>' : '<td>Cell</td>';
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table><p><br></p>';
+    execCmd('insertHTML', html);
+  }
+
+  function insertImageUrl() {
+    const url = prompt('Enter Image URL:');
+    if (url) execCmd('insertImage', url);
+  }
+
+  function insertLink() {
+    const url = prompt('Enter Link URL:', 'https://');
+    if (url) execCmd('createLink', url);
+  }
+
+  function insertDate() {
+    execCmd('insertText', new Date().toLocaleString());
+  }
+
+  function setMargins(val) {
+    editor.style.padding = val;
+  }
+
+  function setOrientation(mode) {
+    if (mode === 'landscape') {
+      editor.style.width = '297mm';
+      editor.style.minHeight = '210mm';
+    } else {
+      editor.style.width = '210mm';
+      editor.style.minHeight = '297mm';
+    }
+  }
+
+  function setZoom(scale) {
+    editor.style.transform = `scale(${scale})`;
+  }
+
+  function updateCounts() {
+    const text = editor.innerText.trim();
+    const words = text ? text.split(/\s+/).length : 0;
+    const chars = text.length;
+    wordCountEl.textContent = `Words: ${words} | Characters: ${chars}`;
+    localStorage.setItem('rtg_word_content', editor.innerHTML);
+  }
+
+  editor.addEventListener('input', updateCounts);
+  updateCounts();
+
+  function exportDoc() {
+    const name = document.getElementById('docName').value || 'Document1';
+    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + name + "</title></head><body>";
+    const footer = "</body></html>";
+    const blob = new Blob(['\ufeff', header + editor.innerHTML + footer], { type: 'application/msword' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = name + '.doc';
+    link.click();
+  }
+</script>
+</body>
+</html>

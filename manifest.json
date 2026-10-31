@@ -1,0 +1,9 @@
+{
+  "name": "RTG Word",
+  "short_name": "RTG Word",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#185abd",
+  "theme_color": "#185abd",
+  "orientation": "any"
+}

@@ -1,0 +1,6 @@
+{
+  "appId": "com.rtg.word",
+  "appName": "RTG Word",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}

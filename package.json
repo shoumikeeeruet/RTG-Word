@@ -1,0 +1,13 @@
+{
+  "name": "rtg-word-android",
+  "version": "1.0.0",
+  "description": "RTG Word Processor Android App",
+  "scripts": {
+    "build-apk": "npx cap add android && npx cap sync && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0"
+  }
+}
